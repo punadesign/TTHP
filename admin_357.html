@@ -7,6 +7,7 @@
     body {
       font-family: Arial, sans-serif;
       padding: 40px;
+      background: #f9f9f9;
     }
     h1 {
       color: #333;
@@ -21,26 +22,55 @@
       margin-top: 20px;
       overflow-x: auto;
     }
-    button {
+    a.button {
+      display: inline-block;
       margin-top: 20px;
       padding: 10px 15px;
       font-size: 16px;
-      cursor: pointer;
       background: #4CAF50;
       color: white;
-      border: none;
       border-radius: 5px;
+      text-decoration: none;
+    }
+    table {
+      margin-top: 20px;
+      border-collapse: collapse;
+      width: 100%;
+    }
+    th, td {
+      padding: 8px;
+      border: 1px solid #ccc;
+      text-align: left;
+    }
+    th {
+      background: #eee;
     }
   </style>
 </head>
 <body>
-  <h1>📥 Admin - Upload file Excel & tạo data.json</h1>
-  <input type="file" id="excelFile" accept=".xlsx, .xls" />
-  <div id="output"></div>
+
+  <h1>📥 Admin - Upload Excel để tạo file data.json</h1>
+  <input type="file" id="fileInput" accept=".xlsx, .xls" />
+  
+  <div id="preview" style="display:none;">
+    <h2>📊 Xem trước dữ liệu:</h2>
+    <table id="previewTable"></table>
+  </div>
+
+  <div id="downloadSection" style="display:none;">
+    <a id="downloadButton" class="button" download="data.json">⬇️ Tải file data.json</a>
+  </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script>
-    document.getElementById('excelFile').addEventListener('change', handleFile, false);
+    const fileInput = document.getElementById('fileInput');
+    const preview = document.getElementById('preview');
+    const previewTable = document.getElementById('previewTable');
+    const downloadButton = document.getElementById('downloadButton');
+    const downloadSection = document.getElementById('downloadSection');
+    let processedData = [];
+
+    fileInput.addEventListener('change', handleFile, false);
 
     function handleFile(event) {
       const file = event.target.files[0];
@@ -52,60 +82,79 @@
         const workbook = XLSX.read(data, { type: 'array' });
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
-        const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+        const raw = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
 
-        const cleaned = json
-          .map((row, index) => {
-            if (!row.id || !row.hoTen) return null;
-
-            const s = (v) => v === undefined || v === null ? "" : String(v);
-
-            return {
-              STT: s(row.STT || index + 1),
-              hoTen: s(row.hoTen),
-              lop: s(row.lop),
-              mon: s(row.mon),
-              id: s(row.id),
-              thangCu: s(row.thangCu),
-              hpThangMoi: s(row.hpThangMoi),
-              sachBaiTap: s(row.sachBaiTap),
-              giam: s(row.giam),
-              cong: s(row.cong),
-              daNop: s(row.daNop),
-              con: s(row.con),
-              thanhToan: s(row.thanhToan)
-            };
-          })
-          .filter(row => row && row.id !== "");
-
-        showJSON(cleaned);
-        enableDownload(cleaned);
+        processData(raw);
       };
-
       reader.readAsArrayBuffer(file);
     }
 
-    function showJSON(data) {
-      const output = document.getElementById('output');
-      output.innerHTML = `
-        <h2>✅ Kết quả JSON:</h2>
-        <pre>${JSON.stringify(data, null, 2)}</pre>
-      `;
+    function processData(rawData) {
+      if (rawData.length < 2) {
+        alert('Không tìm thấy dữ liệu.');
+        return;
+      }
+
+      const students = [];
+      for (let i = 1; i < rawData.length; i++) {
+        const row = rawData[i];
+        if (!row[1]) continue;
+
+        students.push({
+          STT: String(row[0] || ''),
+          hoTen: String(row[1] || ''),
+          lop: String(row[2] || ''),
+          mon: String(row[3] || ''),
+          id: String(row[4] || ''),
+          thangCu: String(row[5] || ''),
+          hpThangMoi: String(row[6] || ''),
+          sachBaiTap: String(row[7] || ''),
+          giam: String(row[8] || ''),
+          cong: String(row[9] || ''),
+          daNop: String(row[10] || ''),
+          con: String(row[11] || ''),
+          thanhToan: String(row[12] || '')
+        });
+      }
+
+      processedData = students;
+      showPreview(students.slice(0, 5));
+      enableDownload();
     }
 
-    function enableDownload(data) {
-      const jsonString = JSON.stringify(data, null, 2);
-      const blob = new Blob([jsonString], { type: "application/json" });
+    function showPreview(data) {
+      previewTable.innerHTML = `
+        <tr>
+          <th>STT</th>
+          <th>Họ tên</th>
+          <th>Lớp</th>
+          <th>Môn</th>
+          <th>ID</th>
+          <th>Còn</th>
+          <th>QR</th>
+        </tr>
+      `;
+      data.forEach(row => {
+        previewTable.innerHTML += `
+          <tr>
+            <td>${row.STT}</td>
+            <td>${row.hoTen}</td>
+            <td>${row.lop}</td>
+            <td>${row.mon}</td>
+            <td>${row.id}</td>
+            <td>${row.con}</td>
+            <td>${row.thanhToan ? '✅' : '❌'}</td>
+          </tr>
+        `;
+      });
+      preview.style.display = 'block';
+    }
+
+    function enableDownload() {
+      const blob = new Blob([JSON.stringify(processedData, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
-
-      const downloadButton = document.createElement('a');
       downloadButton.href = url;
-      downloadButton.download = "data.json";
-      downloadButton.innerText = "⬇️ Tải file data.json";
-      downloadButton.style.display = 'inline-block';
-      downloadButton.style.marginTop = '20px';
-
-      document.getElementById('output').appendChild(downloadButton);
+      downloadSection.style.display = 'block';
     }
   </script>
 </body>

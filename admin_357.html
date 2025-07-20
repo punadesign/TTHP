@@ -2,160 +2,175 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <title>Admin - Tạo file data.json</title>
+  <title>Admin - Tra cứu & Tạo data.json</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      padding: 40px;
-      background: #f9f9f9;
-    }
-    h1 {
-      color: #333;
-    }
-    input[type="file"] {
-      margin-top: 20px;
-    }
-    pre {
-      background: #f4f4f4;
+      background: #f0f2f5;
       padding: 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
       border-radius: 10px;
-      margin-top: 20px;
-      overflow-x: auto;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      overflow: hidden;
     }
-    a.button {
-      display: inline-block;
-      margin-top: 20px;
-      padding: 10px 15px;
-      font-size: 16px;
-      background: #4CAF50;
+    .header {
+      background: linear-gradient(135deg,#4facfe 0%,#00f2fe 100%);
       color: white;
-      border-radius: 5px;
-      text-decoration: none;
+      padding: 20px;
+      text-align: center;
     }
-    table {
-      margin-top: 20px;
-      border-collapse: collapse;
+    .header h1 {
+      margin: 0;
+      font-size: 1.8em;
+    }
+    .body {
+      padding: 20px;
+    }
+    .body input[type="file"] {
       width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      font-size: 1em;
     }
-    th, td {
+    #preview {
+      margin-top: 20px;
+    }
+    #preview table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    #preview th, #preview td {
       padding: 8px;
-      border: 1px solid #ccc;
+      border: 1px solid #ddd;
+    }
+    #preview th {
+      background: #f7f7f7;
       text-align: left;
     }
-    th {
-      background: #eee;
+    #downloadSection {
+      text-align: center;
+      margin-top: 20px;
+    }
+    #downloadButton {
+      display: inline-block;
+      padding: 12px 24px;
+      background: #28a745;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 1em;
+    }
+    #downloadButton:hover {
+      background: #218838;
     }
   </style>
 </head>
 <body>
 
-  <h1>📥 Admin - Upload Excel để tạo file data.json</h1>
-  <input type="file" id="fileInput" accept=".xlsx, .xls" />
-  
-  <div id="preview" style="display:none;">
-    <h2>📊 Xem trước dữ liệu:</h2>
-    <table id="previewTable"></table>
+<div class="container">
+  <div class="header">
+    <h1>📥 Admin - Upload Excel & tạo data.json</h1>
   </div>
+  <div class="body">
+    <input type="file" id="fileInput" accept=".xlsx,.xls" />
 
-  <div id="downloadSection" style="display:none;">
-    <a id="downloadButton" class="button" download="data.json">⬇️ Tải file data.json</a>
+    <div id="preview" style="display:none;">
+      <h3>📊 Xem trước dữ liệu:</h3>
+      <table id="previewTable"></table>
+    </div>
+
+    <div id="downloadSection" style="display:none;">
+      <a id="downloadButton" download="data.json">⬇️ Tải file data.json</a>
+    </div>
   </div>
+</div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script>
-    const fileInput = document.getElementById('fileInput');
-    const preview = document.getElementById('preview');
-    const previewTable = document.getElementById('previewTable');
-    const downloadButton = document.getElementById('downloadButton');
-    const downloadSection = document.getElementById('downloadSection');
-    let processedData = [];
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+  const fileInput = document.getElementById('fileInput');
+  const preview = document.getElementById('preview');
+  const previewTable = document.getElementById('previewTable');
+  const downloadButton = document.getElementById('downloadButton');
+  const downloadSection = document.getElementById('downloadSection');
+  let processedData = [];
 
-    fileInput.addEventListener('change', handleFile, false);
+  fileInput.addEventListener('change', handleFile, false);
 
-    function handleFile(event) {
-      const file = event.target.files[0];
-      if (!file) return;
+  function handleFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
 
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
-        const raw = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, { type: 'array' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const raw = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+      processData(raw);
+    };
+    reader.readAsArrayBuffer(file);
+  }
 
-        processData(raw);
-      };
-      reader.readAsArrayBuffer(file);
-    }
+  function processData(rawData) {
+    if (rawData.length < 2) return alert('Không có dữ liệu hợp lệ.');
 
-    function processData(rawData) {
-      if (rawData.length < 2) {
-        alert('Không tìm thấy dữ liệu.');
-        return;
-      }
+    const students = [];
+    for (let i = 1; i < rawData.length; i++) {
+      const row = rawData[i];
+      if (!row[1] || !row[4]) continue;  // đảm bảo có tên & ID
 
-      const students = [];
-      for (let i = 1; i < rawData.length; i++) {
-        const row = rawData[i];
-        if (!row[1]) continue;
-
-        students.push({
-          STT: String(row[0] || ''),
-          hoTen: String(row[1] || ''),
-          lop: String(row[2] || ''),
-          mon: String(row[3] || ''),
-          id: String(row[4] || ''),
-          thangCu: String(row[5] || ''),
-          hpThangMoi: String(row[6] || ''),
-          sachBaiTap: String(row[7] || ''),
-          giam: String(row[8] || ''),
-          cong: String(row[9] || ''),
-          daNop: String(row[10] || ''),
-          con: String(row[11] || ''),
-          thanhToan: String(row[12] || '')
-        });
-      }
-
-      processedData = students;
-      showPreview(students.slice(0, 5));
-      enableDownload();
-    }
-
-    function showPreview(data) {
-      previewTable.innerHTML = `
-        <tr>
-          <th>STT</th>
-          <th>Họ tên</th>
-          <th>Lớp</th>
-          <th>Môn</th>
-          <th>ID</th>
-          <th>Còn</th>
-          <th>QR</th>
-        </tr>
-      `;
-      data.forEach(row => {
-        previewTable.innerHTML += `
-          <tr>
-            <td>${row.STT}</td>
-            <td>${row.hoTen}</td>
-            <td>${row.lop}</td>
-            <td>${row.mon}</td>
-            <td>${row.id}</td>
-            <td>${row.con}</td>
-            <td>${row.thanhToan ? '✅' : '❌'}</td>
-          </tr>
-        `;
+      students.push({
+        STT: String(row[0] || ''),
+        hoTen: String(row[1] || ''),
+        lop: String(row[2] || ''),
+        mon: String(row[3] || ''),
+        id: String(row[4] || ''),
+        thangCu: String(row[5] || ''),
+        hpThangMoi: String(row[6] || ''),
+        sachBaiTap: String(row[7] || ''),
+        giam: String(row[8] || ''),
+        cong: String(row[9] || ''),
+        daNop: String(row[10] || ''),
+        con: String(row[11] || ''),
+        thanhToan: String(row[12] || '')
       });
-      preview.style.display = 'block';
     }
 
-    function enableDownload() {
-      const blob = new Blob([JSON.stringify(processedData, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      downloadButton.href = url;
-      downloadSection.style.display = 'block';
-    }
-  </script>
+    processedData = students;
+    showPreview(students.slice(0, 5));
+    enableDownload();
+  }
+
+  function showPreview(data) {
+    let html = `<tr>
+      <th>STT</th><th>Họ tên</th><th>Lớp</th><th>Môn</th><th>ID</th><th>Còn</th><th>QR</th>
+    </tr>`;
+    data.forEach(r => {
+      html += `<tr>
+        <td>${r.STT}</td>
+        <td>${r.hoTen}</td>
+        <td>${r.lop}</td>
+        <td>${r.mon}</td>
+        <td>${r.id}</td>
+        <td>${r.con}</td>
+        <td>${r.thanhToan ? '✅' : '❌'}</td>
+      </tr>`;
+    });
+    previewTable.innerHTML = html;
+    preview.style.display = 'block';
+  }
+
+  function enableDownload() {
+    const blob = new Blob([JSON.stringify(processedData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    downloadButton.href = url;
+    downloadSection.style.display = 'block';
+  }
+</script>
+
 </body>
 </html>
